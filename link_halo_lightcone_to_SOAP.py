@@ -1,34 +1,33 @@
+"""
+This script takes the output from the halo lightcone (created using the black hole lightcone) to some select quantities from the SOAP catalogue.
+As this requires the loading of the SOAP catalogue at each redshift this is potentially slow.
+
+This script uses the following inputs
+
+-o base name of the output file
+-z maximal redshift used
+
+"""
+
 import pandas as pd
-import swiftemulator as se
 import numpy as np
-import matplotlib.pyplot as plt
-from velociraptor.observations import load_observations
-from velociraptor.observations.objects import ObservationalData
-import matplotlib as mpl
-import emcee
-import corner
+import healpy as hp
 import unyt
 from unyt import Msun
-from astropy.cosmology import WMAP9
 from tqdm import tqdm
-from sklearn.decomposition import IncrementalPCA
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
-mpl.rcParams['figure.dpi'] = 200
-import pandas as pd
-import healpy as hp
-from velociraptor import load as load_catalogue
 import h5py as h5
-from astropy.io import fits
-from p_tqdm import p_map
 import argparse
+from velociraptor import load as load_catalogue
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o","--output", type=str)
+parser.add_argument("-z","--redshift", type=float)
 args = parser.parse_args()
 
-returned_names = ["id", "M500", "Compton_y", "Xray band 0", "Xray band 1", "Xray band 2"]
+# Calculate the number of redshift slices
+max_index = int(np.rint(args.redshift / 0.05))
 
-for shell_nr in tqdm(range(4)):
+for shell_nr in tqdm(range(max_index)):
     if shell_nr < 10:
         shell_name = "0" + str(shell_nr)
     else:
@@ -64,10 +63,9 @@ for shell_nr in tqdm(range(4)):
     M_fof = M_fof[M_fof_mask]
 
     catalogue = h5.File("/cosma8/data/dp004/flamingo/Runs/L1000N1800/HYDRO_FIDUCIAL/SOAP/halo_properties_00" + str(Snap_num) + ".hdf5","r")
-    vrcar = load_catalogue("/cosma8/data/dp004/flamingo/Runs/L1000N1800/HYDRO_FIDUCIAL/VR/catalogue_00" + str(Snap_num) + "/vr_catalogue_00" + str(Snap_num) +".properties.0","r")
 
-    hosthaloid = np.array(vrcar.ids.hosthaloid.value,dtype=int)
-    normalid = np.array(vrcar.ids.id.value,dtype=int)
+    hosthaloid = catalogue["VR/HostHaloID"][:]
+    normalid = catalogue["VR/ID"][:]
 
     SOAP_M500 = catalogue["SO/500_crit/TotalMass"][:]
     SOAP_CY = catalogue["SO/5xR_500_crit/ComptonY"][:]
