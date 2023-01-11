@@ -1,42 +1,34 @@
+"""
+Script to combine the outputs 
+
+this has three inputs
+-i the same name used as output for the linking script
+-o the name of the output file (not including the .csv part)
+-c A flag to delete the input files when the final catalog is saved
+"""
+
+import os
 import pandas as pd
-import swiftemulator as se
 import numpy as np
-import matplotlib.pyplot as plt
-from velociraptor.observations import load_observations
-from velociraptor.observations.objects import ObservationalData
-import matplotlib as mpl
-import emcee
-import corner
-import unyt
-from unyt import Msun
-from astropy.cosmology import WMAP9
 from tqdm import tqdm
-from sklearn.decomposition import IncrementalPCA
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
-mpl.rcParams['figure.dpi'] = 200
-import pandas as pd
-import healpy as hp
-from velociraptor import load as load_catalogue
-import h5py as h5
-from astropy.io import fits
-from p_tqdm import p_map
 import argparse
+from glob import glob
+from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-o","--output", type=str)
 parser.add_argument("-i","--input", type=str)
+parser.add_argument("-c","--clean",action='store_true')
+
+# Parse the folder for the individual files
 args = parser.parse_args()
+files = [Path(x) for x in glob(args.input + "*.csv")]
 
+# Loop over the different redshifts and concatenate into a big dictonary
 big_cat = {}
-for shell_nr in tqdm(range(4)):
-    if shell_nr < 10:
-        shell_name = "0" + str(shell_nr)
-    else:
-        shell_name = str(shell_nr)
-
-    cat = pd.read_csv(args.input + "_" + shell_name + ".csv")
-
-    if shell_nr ==0:
+for shell_nr, file in tqdm(enumerate(files)):
+    cat = pd.read_csv(file)
+    if shell_nr == 0:
         for name in cat.keys():
             big_cat[name] = cat[name].values
     else:
@@ -46,7 +38,11 @@ for shell_nr in tqdm(range(4)):
             added = np.append(all_prev,new)
             big_cat[name] = added
 
-print(len(added))
-
+# Save the output
 out_cat = pd.DataFrame(big_cat)
 out_cat.to_csv(args.output + ".csv")
+
+# Remove the individual files if requested
+if args.clean:
+    for file in files:
+        os.remove(file)
